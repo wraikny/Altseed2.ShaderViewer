@@ -360,3 +360,13 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+/lib/Altseed2/**
+
+
+
+
+!**/.gitkeep
+
+Log.txt
+
