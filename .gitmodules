@@ -1,3 +1,3 @@
 [submodule "lib/EffFs"]
 	path = lib/EffFs
-	url = git@github.com:wraikny/EffFs.git
+	url = https://github.com/wraikny/EffFs.git

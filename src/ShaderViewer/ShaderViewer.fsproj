@@ -33,7 +33,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="Model.fs" />
+    <Compile Include="Dispatcher.fs" />
+    <Compile Include="Imgui.fs" />
     <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\lib\EffFs\src\EffFs\EffFs.fsproj" />
   </ItemGroup>
 
 </Project>

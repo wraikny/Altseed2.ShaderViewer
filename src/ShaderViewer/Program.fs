@@ -1,56 +1,47 @@
 ﻿module ShaderViewer.Program
 
 open System
-open System.Collections.Generic
 open Altseed2
+open EffFs
 
-let makeDispatcher initModel update =
-  let mutable isUpdating = false
-  let mutable modelMemo = initModel
-  let queue = Queue()
-
-  fun msg ->
-    if isUpdating then
-      queue.Enqueue msg
+type Handler = {
+  material: Material
+} with
+  static member Handle(x) = x
+  static member Handle(Model.OpenShaderEffect path, k) =
+    Eff.capture (fun h ->
+    let mutable shader = null
+    let res = Shader.TryCreateFromFile ("pixelshader", path, ShaderStage.Pixel, &shader)
+    if isNull shader then
+      Error res |> k
     else
-      isUpdating <- true
+      h.material.SetShader(shader)
+      Ok res |> k
+    )
 
-      let rec applyQueueMsgs model =
-        queue.TryDequeue() |> function
-        | true, msg ->
-          model
-          |> update msg
-          |> applyQueueMsgs
-        | _ -> model
+type MyPostEffect(texture) =
+  inherit PostEffectNode ()
+  let mutable time = 0.0f
+  let material = Material.Create()
+  let param = RenderPassParameter(Color(50, 50, 50, 255), true, true)
 
-      modelMemo <- modelMemo |> update msg |> applyQueueMsgs
+  member __.Material with get() = material
 
-      isUpdating <- false
+  override this.OnUpdate() =
+    time <- time + Engine.DeltaSecond
+    material.SetVector4F("time", Vector4F(time, sin time, cos time, 0.0f))
 
-module Viewer =
-  let white = Color(255, 255, 255, 255)
+  override this.Draw(_src, _clearColor) =
+    if material.GetShader(ShaderStage.Pixel) <> null then
+      Engine.Graphics.CommandList.RenderToRenderTexture (material, texture, param)
 
-  let inline window name flag f =
-    if Engine.Tool.Begin (name, flag) then
-      f ()
-      Engine.Tool.End ()
 
-  let makeViewer (texture) =
 
-    let t = Engine.Tool
-    fun () ->
-      let flags = ToolWindowFlags.None
-      window "Shader" flags (fun () ->
-        t.Image(texture, Vector2F(600.0f, 450.0f), Vector2F(0.0f, 0.0f), Vector2F(1.0f, 1.0f), white, white)
-      )
-      ()
-
-[<EntryPoint>]
+[<EntryPoint; STAThread>]
 let main _ =
   let config =
     Configuration
-      ( IsResizable = true
-      , EnabledCoreModules = (CoreModules.Default ||| CoreModules.Tool)
+      ( EnabledCoreModules = (CoreModules.Graphics ||| CoreModules.Tool)
       , ConsoleLoggingEnabled = true
       , FileLoggingEnabled = true
       )
@@ -58,11 +49,28 @@ let main _ =
   if not <| Engine.Initialize("ShaderViewer", 800, 600, config) then
     failwith "Failed to initialize the Engine"
 
-  let viewer = makeViewer ()
+  let texture = RenderTexture.Create(Vector2I(800, 600), TextureFormat.R8G8B8A8_UNORM)
+  
+  let posteffect = MyPostEffect(texture)
+  Engine.AddNode(posteffect)
+
+  let handler = {
+    material = posteffect.Material
+  }
+
+  let dispatcher =
+    let initState = Model.State.Init ()
+    let update msg state = Model.update msg state |> Eff.handle handler
+    Dispatcher(initState, update)
+
+  let viewer = Imgui.makeViewer {
+    texture = texture
+    dispatch = dispatcher.Dispatch
+  }
 
   let rec loop () =
     if Engine.DoEvents() then
-      viewer ()
+      viewer dispatcher.State
       Engine.Update() |> ignore
       loop ()
 
