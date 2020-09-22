@@ -35,7 +35,9 @@ let makeViewer param =
         // let path = @"/Users/binar/Altseed2Projects/ShaderViewer/src/Shaders/sample.hlsl"
         if path <> null && path <> "" then
           param.dispatch (Model.Open path)
-        ()
+      
+      if state.path.IsSome && Engine.Tool.SmallButton("Update") then
+        param.dispatch Model.Update
     )
 
     fixedWindow "Log" (RectF(size.X, 300.0f, 200.0f, 300.0f)) (fun () ->

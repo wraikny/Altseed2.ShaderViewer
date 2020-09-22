@@ -5,27 +5,40 @@ open Altseed2
 open EffFs
 
 type Handler = {
-  material: Material
+  setShader: Shader -> unit
 } with
   static member Handle(x) = x
-  static member Handle(Model.OpenShaderEffect path, k) =
+  static member Handle(e: Model.ShaderEffect, k) =
     Eff.capture (fun h ->
     let mutable shader = null
-    let res = Shader.TryCreateFromFile ("pixelshader", path, ShaderStage.Pixel, &shader)
+    let res = e |> function
+      | Model.ShaderEffect.Open path ->
+        
+        Shader.TryCreateFromFile ("pixelshader", path, ShaderStage.Pixel, &shader)
+      | Model.ShaderEffect.Update path ->
+        StaticFile.Create(path).Reload() |> ignore
+        Shader.TryCreateFromFile ("pixelshader", path, ShaderStage.Pixel, &shader)
+
     if isNull shader then
       Error res |> k
     else
-      h.material.SetShader(shader)
+      h.setShader(shader)
       Ok res |> k
     )
 
-type MyPostEffect(texture) =
+type MyPostEffect(texture: RenderTexture) =
   inherit PostEffectNode ()
   let mutable time = 0.0f
   let material = Material.Create()
   let param = RenderPassParameter(Color(50, 50, 50, 255), true, true)
 
-  member __.Material with get() = material
+  do
+    
+    material.SetVector4F("windowSize", Vector4F(float32 texture.Size.X, float32 texture.Size.Y, 0.0f, 0.0f))
+
+  member __.SetShader(shader) =
+    time <- 0.0f
+    material.SetShader(shader)
 
   override this.OnUpdate() =
     time <- time + Engine.DeltaSecond
@@ -55,7 +68,7 @@ let main _ =
   Engine.AddNode(posteffect)
 
   let handler = {
-    material = posteffect.Material
+    setShader = posteffect.SetShader
   }
 
   let dispatcher =

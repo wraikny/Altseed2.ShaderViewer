@@ -1,4 +1,4 @@
 # Altseed2.ShaderViewer
 
 ## Dependencies
-Altseed2 14171e9f9a520b66422a6d62b5462d78512f6e5c
+Altseed2 f3d5c7b1a0698a594823604da191f7457ce0be6a
